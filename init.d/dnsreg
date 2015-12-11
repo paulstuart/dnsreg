@@ -1,0 +1,131 @@
+#!/bin/sh
+
+# the following is the LSB init header see
+# http://www.linux-foundation.org/spec//booksets/LSB-Core-generic/LSB-Core-generic.html#INITSCRCOMCONV
+#
+### BEGIN INIT INFO
+# Provides: dnsreg
+# Required-Start: $network messagebus
+# Required-Stop: $network messagebus
+# Default-Start: 3 4 5
+# Short-Description: daemon for to capture network device statistics
+# Description: This is a daemon for managing the runtime status of
+#               a group of snmp devices and save information in a
+#               remote storage system
+### END INIT INFO
+
+# the following is chkconfig init header
+#
+# dnsreg		This service wraps around nsupdate to allow servers to 
+#               register and deregister themselves in dns
+#
+#
+# chkconfig: 2345 80 20
+# description: dnsreg is an http wrapper around nsupdate.\
+# It allows hosts to make a request via curl to add or remove \
+# themselves from dns. A host may only specify its name \
+# (the IP address is derived from the http request. \
+# \
+# The host must have the same domain name as the dns server
+# description:  This is a daemon for snmp stats capture\
+#               and and storage system\
+#               See https://github.com/paulstuart/dnsreg
+#
+# processname: dnsreg
+# pidfile: /var/run/dnsreg.pid
+#
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+SERVICE=dnsreg
+PROCESS=dnsreg
+PID_DIR=/var/run
+LOG_DIR=/var/log
+LOCK_DIR=/var/lock/subsys
+PIDFILE=$PID_DIR/$SERVICE.pid
+
+INITCTL_PATH=/sbin/initctl
+
+# customize as needed
+CUSTOM_CONFIG=${CUSTOM_CONFIG:-/etc/sysconfig/dnsreg}
+test -f $CUSTOM_CONFIG && . $CUSTOM_CONFIG 
+
+
+fail() {
+    echo -n "$*"
+    echo_failure 
+    echo
+    exit 1
+}
+
+start() {
+    echo -n $"Starting $SERVICE daemon: "
+
+    # make sure it's available in path and permissions are ok
+    which $PROCESS > /dev/null 2>&1 || fail "missing $PROCESS command" 
+    [ -w $PID_DIR ]  || fail "no write access in $PID_DIR"
+    [ -w $LOG_DIR ]  || fail "no write access in $LOG_DIR"
+    [ -w $LOCK_DIR ] || fail "no write access in $LOCK_DIR"
+
+    # fire it up!
+    __pids_var_run $PROCESS
+    [ $? -eq 0 ] && echo_failure && exit $?
+    nohup $PROCESS > $LOG_DIR/$SERVICE.log 2>&1 &
+    RETVAL=$?
+    PID=$!
+
+    if [ $RETVAL -eq 0 ]; then
+        echo $PID > $PIDFILE 
+        echo_success 
+        touch $LOCK_DIR/$SERVICE
+    else
+        echo_failure
+    fi
+    echo
+}
+
+stop() {
+    echo -n $"Stopping $SERVICE daemon: "
+
+    killproc -p $PIDFILE $PROCESS
+    RETVAL=$?
+    echo
+    if [ $RETVAL -eq 0 ]; then
+        rm -f /var/lock/subsys/$SERVICE
+    else
+        exit $RETVAL
+    fi
+}
+
+restart() {
+    stop
+    start
+}
+
+reload() {
+    echo -n $"Reloading $SERVICE configuration: "
+    initctl_check
+
+    killproc -p $PIDFILE $PROCESS -HUP
+    RETVAL=$?
+    echo
+    return $RETVAL
+}
+
+# See how we were called.
+case "$1" in
+    start|stop|restart|reload)
+	    [ "$EUID" != "0" ] && exit 4
+        $1
+        ;;
+    status)
+        status -p $PIDFILE $PROCESS
+        RETVAL=$?
+        ;;
+    *)
+        echo $"Usage: `basename $0` {start|stop|status|restart}"
+        exit 2
+        ;;
+esac
+exit $RETVAL

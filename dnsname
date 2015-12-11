@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+# dnsname   Registers and deregisters the hostname in dns
+#
+#
+#######################################
+#
+#  THIS DOES NOT RUN AS A DAEMON
+#
+#  It just registers the dnsname at startup 
+#  and deregisters same at shutdown
+#
+#######################################
+#
+# Return values according to LSB:
+# 0 - success
+# 1 - generic or unspecified error
+# 3 - unimplemented feature (e.g. "reload")
+
+PATH=/sbin:/bin:/usr/bin:/usr/sbin
+
+fail() {
+  echo >&2 $@
+  exit 1
+}
+
+# Check config
+test -f /etc/sysconfig/dnsname && . /etc/sysconfig/dnsname
+
+RETVAL=0
+
+[[ $DNS_HOST ]] || fail '$DNS_HOST is not set'
+
+DNS_PORT="${DNS_PORT:-8888}"
+DNS_NAME="${DNS_NAME:-$HOSTNAME}"
+
+DNS_URL="http://$DNS_HOST:$DNS_PORT/register/$DNS_NAME"
+
+ping -c 1 -W 1 $DNS_HOST > /dev/null 2>&1 || fail "Server is not reachable: $DNS_HOST"
+(echo >/dev/tcp/$DNS_HOST/$DNS_PORT) &>/dev/null || fail "Service not running at $DNS_HOST:$DNS_PORT"
+
+start(){
+	curl -X POST "$DNS_URL"
+}
+
+stop(){
+	curl -X DELETE "$DNS_URL"
+}
+
+# See how we were called.
+case "$1" in
+    start) start ;;
+    stop) stop ;;
+    *)
+	echo $"Usage: $0 {start|stop}"
+	RETVAL=3
+	;;
+esac
+
+exit $RETVAL
+
