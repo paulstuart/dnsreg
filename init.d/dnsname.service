@@ -1,0 +1,14 @@
+[Unit]
+Description=Register / Deregister hostname in DNS
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/dnsname start
+ExecStop=/usr/local/bin/dnsname stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
