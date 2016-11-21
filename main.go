@@ -126,23 +126,23 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no hostname specified", http.StatusInternalServerError)
 		return
 	}
-	dot := strings.Index(hostname, ".")
-	if dot < 0 {
-		http.Error(w, "error: must be FQDN. hostname: "+hostname, http.StatusInternalServerError)
+	if dot := strings.Index(hostname, "."); dot > 0 {
+		given := hostname[dot+1:]
+		if len(given) > 0 && given != domain {
+			msg := fmt.Sprintf("invalid domain: %s. must be: %s", given, domain)
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+		hostname = hostname[:dot]
+		if !valid.MatchString(hostname) {
+			http.Error(w, "invalid hostname: "+hostname, http.StatusBadRequest)
+			return
+		}
+	}
+	if hostname == "localhost" {
+		http.Error(w, "invalid hostname: "+hostname, http.StatusBadRequest)
 		return
 	}
-	given := hostname[dot+1:]
-	if given != domain {
-		msg := fmt.Sprintf("invalid domain: %s. must be: %s", given, domain)
-		http.Error(w, msg, http.StatusInternalServerError)
-		return
-	}
-	hostname = hostname[:dot]
-	if !valid.MatchString(hostname) {
-		http.Error(w, "invalid hostname: "+hostname, http.StatusInternalServerError)
-		return
-	}
-
 	ip := RemoteHost(r)
 	if r.Method == "POST" {
 		if err := dnsAdd(hostname, ip); err != nil {
