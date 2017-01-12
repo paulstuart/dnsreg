@@ -22,6 +22,7 @@ Usage: $(basename $0) -i <IP> -s <HOSTNAME> [-t <TTL>] [-d DOMAIN] add|del
 Options:
    -d DOMAIN    default is $DOMAIN
    -t TTL       default is $TTL
+   -n NS        optional nameserver
    -x           print output but do not execute
 
 EOF
@@ -30,6 +31,7 @@ exit 1
 
 dnscmd() {
 cat << EOF
+$SERVER
 update $CMD $HOST.$DOMAIN $TTL IN A $IP
 send
 update $CMD $REVERSE.in-addr.arpa $TTL PTR $HOST.$DOMAIN.
@@ -37,11 +39,12 @@ send
 EOF
 }
 
-while getopts ":i:s:x" opt; do
+while getopts ":i:n:s:x" opt; do
     case "$opt" in
         h) usage ;;
         d) DOMAIN=${OPTARG} ;;
         i) IP=${OPTARG} ;;
+        n) SERVER="server ${OPTARG}" ;;
         s) HOST=${OPTARG} ;;
         t) TTL=${OPTARG} ;;
         x) DEBUG=true ;;
