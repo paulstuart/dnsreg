@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+
+CMD=add
+TTL=86400
+
+fail() { echo >&2 $*; exit 1; }
+name() { [[ $1 =~ \. ]] && echo $1 || echo ${1}.$(hostname -d); }
+
+while getopts ":dt:" opt; do
+    case "$opt" in
+        d) CMD=delete ;;
+        t) TTL=${OPTARG} ;;
+        \?) fail "invalid option: -$OPTARG" ;;
+    esac
+done
+shift $((OPTIND-1))
+
+[[ $# -lt 2 ]] && fail "missing hosts"
+
+cat << EOF | nsupdate
+update $CMD $(name $1) $TTL cname $(name $2).
+send
+EOF
