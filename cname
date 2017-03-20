@@ -5,6 +5,8 @@ CMD=add
 TTL=86400
 
 fail() { echo >&2 $*; exit 1; }
+
+# make sure it's a FQDN
 name() { [[ $1 =~ \. ]] && echo $1 || echo ${1}.$(hostname -d); }
 
 while getopts ":dt:" opt; do

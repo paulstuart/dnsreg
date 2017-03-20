@@ -5,9 +5,11 @@
 #
 
 TTL=300
-DOMAIN=$(hostname | sed -e 's/[a-z0-9-]*.//')
+DOMAIN=$(hostname -d)
+KEYFILE=/etc/rndc.key
+KEYFILE="-k $KEYFILE"
 
-unset DEBUG
+unset DEBUG PRINT
 
 fail() {
   echo >&2 "Error: $*"
@@ -17,13 +19,14 @@ fail() {
 usage() {
     cat >&2 << EOF
 
-Usage: $(basename $0) -i <IP> -s <HOSTNAME> [-t <TTL>] [-d DOMAIN] add|del
+Usage: $(basename $0) -i <IP> -s <HOSTNAME> [-n NS] [-t <TTL>] [-d DOMAIN] add|del
 
 Options:
+   -b 		debug nsupdate
    -d DOMAIN    default is $DOMAIN
    -t TTL       default is $TTL
    -n NS        optional nameserver
-   -x           print output but do not execute
+   -p           print output but do not execute
 
 EOF
 exit 1
@@ -39,15 +42,16 @@ send
 EOF
 }
 
-while getopts ":i:n:s:x" opt; do
+while getopts ":bd:i:n:ps:t:" opt; do
     case "$opt" in
-        h) usage ;;
+        b) DEBUG="-d" ;;
         d) DOMAIN=${OPTARG} ;;
+        h) usage ;;
         i) IP=${OPTARG} ;;
         n) SERVER="server ${OPTARG}" ;;
+        p) PRINT=true ;;
         s) HOST=${OPTARG} ;;
         t) TTL=${OPTARG} ;;
-        x) DEBUG=true ;;
         \?) fail "invalid option: -$OPTARG" ;;
     esac
 done
@@ -69,6 +73,6 @@ esac
 OCT=(${IP//./ })
 REVERSE="${OCT[3]}.${OCT[2]}.${OCT[1]}.${OCT[0]}"
 
-[[ $DEBUG ]] && dnscmd && exit
+[[ $PRINT ]] && dnscmd && exit
 
-dnscmd | nsupdate
+dnscmd | sudo nsupdate $DEBUG $KEYFILE
