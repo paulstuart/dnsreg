@@ -4,23 +4,52 @@
 CMD=add
 TTL=86400
 
+unset SERVER DEBUG
+
 fail() { echo >&2 $*; exit 1; }
+
+usage() {
+    cat >&2 << EOF
+
+Usage: $(basename $0) [-bd] [-n NS] [-t <TTL>] <alias> <hostname>
+
+Options:
+   -b 		debug nsupdate
+   -d 		delete cname
+   -t TTL       default is $TTL
+   -n NS        nameserver to update
+
+EOF
+exit 1
+}
 
 # make sure it's a FQDN
 name() { [[ $1 =~ \. ]] && echo $1 || echo ${1}.$(hostname -d); }
 
-while getopts ":dt:" opt; do
+dnscmd() {
+cat << EOF 
+$SERVER
+update $CMD $HOST $TTL cname $ALIAS.
+send
+EOF
+}
+
+while getopts ":bdhn:t:" opt; do
     case "$opt" in
+        b) DEBUG="-d" ;;
         d) CMD=delete ;;
+	h) usage ;;
+        n) SERVER="server ${OPTARG}" ;;
         t) TTL=${OPTARG} ;;
         \?) fail "invalid option: -$OPTARG" ;;
     esac
 done
 shift $((OPTIND-1))
 
-[[ $# -lt 2 ]] && fail "missing hosts"
+[[ $# -lt 1 ]] && fail "missing host and alias"
+[[ $# -lt 2 ]] && fail "missing host"
 
-cat << EOF | nsupdate
-update $CMD $(name $1) $TTL cname $(name $2).
-send
-EOF
+HOST=$(name $1)
+ALIAS=$(name $2)
+dnscmd | sudo nsupdate $DEBUG
+

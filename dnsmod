@@ -25,7 +25,7 @@ Options:
    -b 		debug nsupdate
    -d DOMAIN    default is $DOMAIN
    -t TTL       default is $TTL
-   -n NS        optional nameserver
+   -n NS        nameserver to update
    -p           print output but do not execute
 
 EOF
