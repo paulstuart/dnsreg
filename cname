@@ -26,14 +26,21 @@ exit 1
 # make sure it's a FQDN
 name() { [[ $1 =~ \. ]] && echo $1 || echo ${1}.$(hostname -d); }
 
-dnscmd() {
+dnsadd() {
 cat << EOF 
 $SERVER
-update $CMD $HOST $TTL cname $ALIAS.
+update add $HOST $TTL cname $ALIAS.
 send
 EOF
 }
 
+dnsdel() {
+cat << EOF 
+$SERVER
+update delete $ALIAS cname
+send
+EOF
+}
 while getopts ":bdhn:t:" opt; do
     case "$opt" in
         b) DEBUG="-d" ;;
@@ -46,10 +53,16 @@ while getopts ":bdhn:t:" opt; do
 done
 shift $((OPTIND-1))
 
-[[ $# -lt 1 ]] && fail "missing host and alias"
-[[ $# -lt 2 ]] && fail "missing host"
-
-HOST=$(name $1)
-ALIAS=$(name $2)
-dnscmd | sudo nsupdate $DEBUG
+if [[ $CMD == "add" ]]
+then
+    [[ $# -lt 1 ]] && fail "missing host and alias"
+    [[ $# -lt 2 ]] && fail "missing host"
+    HOST=$(name $1)
+    ALIAS=$(name $2)
+    dnsadd | sudo nsupdate $DEBUG
+else
+    [[ $# -lt 1 ]] && fail "missing alias"
+    ALIAS=$(name $1)
+    dnsdel | sudo nsupdate $DEBUG
+fi
 
